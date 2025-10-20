@@ -2,25 +2,28 @@ version: '3.8'
 
 volumes:
   postgres_data:
+  elasticsearch_data:
+  etl_state:
 
 services:
   db:
     image: postgres:13
     environment:
-      POSTGRES_DB: theatre_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    env_file:
+      - .env
     volumes:
       # Инициализация БД из SQL-дампа
       - ./database_dump.sql:/docker-entrypoint-initdb.d/init.sql
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+      - postgres_data:/usr/share/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d theatre_db"]
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: always
 
   elasticsearch:
     image: elasticsearch:7.17.0
@@ -28,6 +31,8 @@ services:
       - discovery.type=single-node
       - xpack.security.enabled=false
       - "ES_JAVA_OPTS=-Xms1024m -Xmx1024m"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
     ports:
       - "9200:9200"
     healthcheck:
@@ -35,6 +40,7 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+    restart: always
 
   etl:
     build: .
@@ -48,5 +54,5 @@ services:
     env_file:
       - .env
     volumes:
-      - ./state.json:/etl/state.json
-    restart: on-failure
+      - etl_state:/app/
+    restart: always

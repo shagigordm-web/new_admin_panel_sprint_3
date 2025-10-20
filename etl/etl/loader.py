@@ -2,7 +2,7 @@
 from elasticsearch import Elasticsearch, ConflictError
 from elasticsearch.helpers import bulk
 from typing import List, Dict, Any
-from .utils import elastic_backoff
+from .utils import backoff # Импортируем универсальный декоратор
 from .config import settings
 from .index_mapping import INDEX_MAPPING_BODY
 import logging
@@ -14,7 +14,7 @@ class ElasticLoader:
         self.client = Elasticsearch(hosts=[str(settings.elastic_host)], max_retries=3, retry_on_timeout=True)
         self.index_name = settings.elastic_index
 
-    @elastic_backoff
+    @backoff # Применяем универсальный декоратор
     def load(self, documents: List[Dict[str, Any]]):
         if not documents:
             logger.info("No documents to load.")
@@ -35,7 +35,6 @@ class ElasticLoader:
             logger.error(f"Failed to load {len(failed_items)} documents: {failed_items}")
 
     def create_index_if_not_exists(self):
-        """Создает индекс, если он не существует, с заданным маппингом."""
         if not self.client.indices.exists(index=self.index_name):
             self.client.indices.create(index=self.index_name, body=INDEX_MAPPING_BODY)
             logger.info(f"Index {self.index_name} created with predefined mapping.")
@@ -43,7 +42,6 @@ class ElasticLoader:
             logger.info(f"Index {self.index_name} already exists.")
 
     def clear_index(self):
-        """Очищает индекс перед загрузкой."""
         if self.client.indices.exists(index=self.index_name):
             self.client.indices.delete(index=self.index_name)
             logger.info(f"Index {self.index_name} deleted.")
